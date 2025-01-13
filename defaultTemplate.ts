@@ -10,9 +10,11 @@ tags:
 
 # Basic Information
 - Names:
-- Birthday: 
+- Birthday: {{birthday}}
 - Age:
 - Gender
+- Phone: {{phone}}
+- Email: {{email}}
 
 # Relationship Dynamics
 - Role in My Life:

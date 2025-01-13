@@ -4,11 +4,15 @@ import { defaultTemplate } from './defaultTemplate';
 // Define the settings interface
 interface PersonNotePluginSettings {
     templatePath: string;
+    // New setting for contacts import file path
+    contactsImportPath: string;
 }
 
 // Define the default settings
 const DEFAULT_SETTINGS: PersonNotePluginSettings = {
-    templatePath: ''
+    templatePath: '',
+     // Default value for contacts import file path
+    contactsImportPath: ''
 };
 
 // Define the main plugin class
@@ -28,6 +32,16 @@ export default class PersonNotePlugin extends Plugin {
             callback: () => {
                 console.log('Add Person Note command executed');
                 this.addPersonNote();
+            }
+        });
+
+        // New command for importing contacts
+        this.addCommand({
+            id: 'import-contacts',
+            name: 'Import Contacts',
+            callback: () => {
+                console.log('Import Contacts command executed');
+                this.importContacts();
             }
         });
 
@@ -87,6 +101,76 @@ export default class PersonNotePlugin extends Plugin {
         });
     }
 
+    // Method to import contacts
+    async importContacts() {
+        console.log('importContacts method called');
+
+        if (!this.settings.contactsImportPath) {
+            new Notice('Contacts import file path not set');
+            return;
+        }
+
+        const filePath = normalizePath(this.settings.contactsImportPath);
+        const file = this.app.vault.getAbstractFileByPath(filePath) as TFile;
+
+        if (!file) {
+            new Notice('Contacts file not found');
+            return;
+        }
+
+        const content = await this.app.vault.read(file);
+        const contacts = this.parseVCF(content); // Implement VCF parsing
+        console.log('parseVCF method called');
+
+        for (const contact of contacts) {
+            await this.createContactNote(contact);
+        }
+
+        new Notice(`Imported ${contacts.length} contacts`);
+    }
+
+    // Method to parse VCF content
+    parseVCF(content: string): any[] {
+        const contacts = [];
+        const vcardRegex = /BEGIN:VCARD[\s\S]*?END:VCARD/g;
+        let match;
+
+        while ((match = vcardRegex.exec(content)) !== null) {
+            const vcard = match[0];
+            const name = vcard.match(/FN:(.*)/)?.[1] || 'Unknown';
+            const phone = vcard.match(/TEL.*:(.*)/)?.[1] || '';
+            const email = vcard.match(/EMAIL.*:(.*)/)?.[1] || '';
+            const birthday = vcard.match(/BDAY:(.*)/)?.[1] || '';
+
+            contacts.push({ name, phone, email, birthday });
+        }
+
+        return contacts;
+    }
+
+    // Method to create a note for each contact
+    async createContactNote(contact: any) {
+        const fileName = `People/${contact.name}.md`;
+        const existingFile = this.app.vault.getAbstractFileByPath(fileName);
+
+        if (existingFile) {
+            new Notice(`Contact note for ${contact.name} already exists. Skipping.`);
+            return;
+        }
+
+        const content = this.generateContactContent(contact);
+        await this.app.vault.create(fileName, content);
+    }
+
+    // Method to generate content for each contact note
+    generateContactContent(contact: any): string {
+        return defaultTemplate
+            .replace('{{name}}', contact.name)
+            .replace('{{phone}}', contact.phone)
+            .replace('{{email}}', contact.email)
+            .replace('{{birthday}}', contact.birthday);
+    }
+
     // Load settings
     async loadSettings() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -122,5 +206,17 @@ class PersonNoteSettingTab extends PluginSettingTab {
                     this.plugin.settings.templatePath = value;
                     await this.plugin.saveSettings();
                 }));
+        
+        // New setting for contacts import file path
+        new Setting(containerEl)
+            .setName('Contacts Import Path')
+            .setDesc('Path to the VCF file for importing contacts')
+            .addText(text => text
+                .setPlaceholder('Contacts/contacts.vcf')
+                .setValue(this.plugin.settings.contactsImportPath)
+                .onChange(async (value) => {
+                    this.plugin.settings.contactsImportPath = value;
+                    await this.plugin.saveSettings();
+                }));        
     }
 }
