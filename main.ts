@@ -1,5 +1,6 @@
-import { App, Plugin, PluginSettingTab, Setting, MarkdownView, Notice, TFile, normalizePath } from 'obsidian';
+import { App, Plugin, PluginSettingTab, Setting, MarkdownView, Notice, TFile, normalizePath, Modal, FuzzySuggestModal } from 'obsidian';
 import { defaultTemplate } from './defaultTemplate';
+import { BatchEditModal } from './BatchEditModal';
 
 // Define the settings interface
 interface PersonNotePluginSettings {
@@ -35,7 +36,7 @@ export default class PersonNotePlugin extends Plugin {
             }
         });
 
-        // New command for importing contacts
+        // Add a command for importing contacts
         this.addCommand({
             id: 'import-contacts',
             name: 'Import Contacts',
@@ -47,6 +48,20 @@ export default class PersonNotePlugin extends Plugin {
 
         // Add settings tab
         this.addSettingTab(new PersonNoteSettingTab(this.app, this));
+
+        this.addRibbonIcon('edit', 'Batch Metadata Editor', (evt: MouseEvent) => {
+            new BatchEditModal(this.app).open();
+        });
+        
+    }
+    // Load settings
+    async loadSettings() {
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    }
+
+    // Save settings
+    async saveSettings() {
+        await this.saveData(this.settings);
     }
 
     // Method to create a new person note
@@ -169,16 +184,6 @@ export default class PersonNotePlugin extends Plugin {
             .replace('{{phone}}', contact.phone)
             .replace('{{email}}', contact.email)
             .replace('{{birthday}}', contact.birthday);
-    }
-
-    // Load settings
-    async loadSettings() {
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-    }
-
-    // Save settings
-    async saveSettings() {
-        await this.saveData(this.settings);
     }
 }
 
