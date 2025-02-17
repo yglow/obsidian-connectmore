@@ -38,10 +38,3 @@ ConnectMore is a plugin for Obsidian that helps you manage notes about people. I
 
 - **Template Path**: Path to the template file for person notes.
 - **Contacts Import Path**: Path to the VCF file for importing contacts.
-
-## Funding URL
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}

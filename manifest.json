@@ -1,7 +1,7 @@
 {
 	"id": "person-note-plugin",
 	"name": "ConnectMore",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"minAppVersion": "0.15.0",
 	"description": "Add notes about people using a template.",
 	"author": "yglow",

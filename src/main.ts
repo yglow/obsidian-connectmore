@@ -1,18 +1,18 @@
-import { App, Plugin, PluginSettingTab, Setting, MarkdownView, Notice, TFile, normalizePath, Modal, FuzzySuggestModal } from 'obsidian';
-import { defaultTemplate } from './defaultTemplate';
-import { BatchEditModal } from './BatchEditModal';
+import { Plugin, Notice, TFile, normalizePath } from 'obsidian';
+import { defaultTemplate } from 'src/defaultTemplate';
+import { BatchEditModal } from 'src/BatchEditModal';
+import { parseVCF } from 'src/utils/vcfParser';
+import PersonNoteSettingTab from 'src/settings/PersonNoteSettingTab';
 
 // Define the settings interface
 interface PersonNotePluginSettings {
     templatePath: string;
-    // New setting for contacts import file path
     contactsImportPath: string;
 }
 
 // Define the default settings
 const DEFAULT_SETTINGS: PersonNotePluginSettings = {
     templatePath: '',
-     // Default value for contacts import file path
     contactsImportPath: ''
 };
 
@@ -52,8 +52,8 @@ export default class PersonNotePlugin extends Plugin {
         this.addRibbonIcon('edit', 'Batch Metadata Editor', (evt: MouseEvent) => {
             new BatchEditModal(this.app).open();
         });
-        
     }
+
     // Load settings
     async loadSettings() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -91,7 +91,7 @@ export default class PersonNotePlugin extends Plugin {
         // Create a new file with the template
         const file = await this.app.vault.create(`People/${fileName}.md`, template.replace('{{title}}', fileName));
         console.log(`File created: People/${fileName}.md`);
-        
+
         // Open the newly created file using Workspace.getLeaf
         const leaf = this.app.workspace.getLeaf();
         await leaf.openFile(file);
@@ -134,7 +134,7 @@ export default class PersonNotePlugin extends Plugin {
         }
 
         const content = await this.app.vault.read(file);
-        const contacts = this.parseVCF(content); // Implement VCF parsing
+        const contacts = parseVCF(content); // Implement VCF parsing
         console.log('parseVCF method called');
 
         for (const contact of contacts) {
@@ -142,25 +142,6 @@ export default class PersonNotePlugin extends Plugin {
         }
 
         new Notice(`Imported ${contacts.length} contacts`);
-    }
-
-    // Method to parse VCF content
-    parseVCF(content: string): any[] {
-        const contacts = [];
-        const vcardRegex = /BEGIN:VCARD[\s\S]*?END:VCARD/g;
-        let match;
-
-        while ((match = vcardRegex.exec(content)) !== null) {
-            const vcard = match[0];
-            const name = vcard.match(/FN:(.*)/)?.[1] || 'Unknown';
-            const phone = vcard.match(/TEL.*:(.*)/)?.[1] || '';
-            const email = vcard.match(/EMAIL.*:(.*)/)?.[1] || '';
-            const birthday = vcard.match(/BDAY:(.*)/)?.[1] || '';
-
-            contacts.push({ name, phone, email, birthday });
-        }
-
-        return contacts;
     }
 
     // Method to create a note for each contact
@@ -184,44 +165,5 @@ export default class PersonNotePlugin extends Plugin {
             .replace('{{phone}}', contact.phone)
             .replace('{{email}}', contact.email)
             .replace('{{birthday}}', contact.birthday);
-    }
-}
-
-// Define the settings tab class
-class PersonNoteSettingTab extends PluginSettingTab {
-    plugin: PersonNotePlugin;
-
-    constructor(app: App, plugin: PersonNotePlugin) {
-        super(app, plugin);
-        this.plugin = plugin;
-    }
-
-    display(): void {
-        const { containerEl } = this;
-
-        containerEl.empty();
-
-        new Setting(containerEl)
-            .setName('Template Path')
-            .setDesc('Path to the template file for person notes')
-            .addText(text => text
-                .setPlaceholder('Templates/PersonNoteTemplate.md')
-                .setValue(this.plugin.settings.templatePath)
-                .onChange(async (value) => {
-                    this.plugin.settings.templatePath = value;
-                    await this.plugin.saveSettings();
-                }));
-        
-        // New setting for contacts import file path
-        new Setting(containerEl)
-            .setName('Contacts Import Path')
-            .setDesc('Path to the VCF file for importing contacts')
-            .addText(text => text
-                .setPlaceholder('Contacts/contacts.vcf')
-                .setValue(this.plugin.settings.contactsImportPath)
-                .onChange(async (value) => {
-                    this.plugin.settings.contactsImportPath = value;
-                    await this.plugin.saveSettings();
-                }));        
     }
 }
